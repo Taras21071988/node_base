@@ -6,11 +6,14 @@ import { CreateUserDTO, UpdateUserDTO } from './dto';
 import { BadRequestException } from '@nestjs/common';
 import { AppError } from 'src/common/constants/errors';
 import { Watchlist } from '../watchlist/models/watchlist.model';
+import { TokenService } from '../token/token.service';
+import { AuthUserResponse } from '../auth/response';
 
 @Injectable()
 export class UserService {
   constructor(
     @InjectModel(User) private readonly userRepository: typeof User,
+    private readonly tokenService: TokenService,
   ) {}
 
   async hashPassword(password: string): Promise<string> {
@@ -49,9 +52,9 @@ export class UserService {
       throw new Error(error);
     }
   }
-  async publicUser(email: string): Promise<User> {
+  async publicUser(email: string): Promise<AuthUserResponse> {
     try {
-      return this.userRepository.findOne({
+      const user = await this.userRepository.findOne({
         where: { email },
         include: {
           model: Watchlist,
@@ -59,6 +62,8 @@ export class UserService {
         },
         attributes: { exclude: ['password'] },
       });
+      const token = await this.tokenService.generateJwtToken(user);
+      return { user, token };
     } catch (error) {
       throw new Error(error);
     }
